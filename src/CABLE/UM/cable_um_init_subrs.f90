@@ -73,12 +73,12 @@ CONTAINS
       character(len=*), parameter :: footer2 = &
                   "-----------------------------------------------------------"
       character(len=*), parameter :: hfmt1 = &
-                  '(A8, 4X, A8, 4X, A8, 4X, A8, 4X,A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8, 4X)'
-      
+                  '(A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8,   4X, A8,   4X, A8,    4X, A8)'
       character(len=*), parameter :: dfmt1 = &
-                  '(I8, 4X, I8, 4X,I8, 4X, I8, 4X,I8, 4X, I8, 4X, F8.3, 4X,  F8.3, 4X,  ES8.2, 4X,  I2)'
+                  '(I8, 4X, I8, 4X, I8, 4X, I8, 4X, I8, 4X, I8, 4X, F8.3, 4X, F8.3, 4X, ES8.2, 4X, I8)'
       character(len=30) :: chnode
-      character(len=6) :: filename
+      character(len=12) :: filename
+      character(len=9), parameter :: basename="cable_mp_"
       integer, dimension(um1%row_length,um1%rows) ::umi, umj 
       integer, dimension(um1%land_pts, um1%ntiles) :: uml,umn 
       integer, dimension(mp) :: cable_umi,cable_umj, cable_uml,cable_umn 
@@ -142,15 +142,18 @@ CONTAINS
             asinlatitude = ( latitude ) /cable%const%math%pi180
              
             !print *, "jhan: _init_ latitude ", shape(latitude), um1%rows
-            call cable_diag( iDiag0, 'latitude', um1%rows, 1, ktau_gl,  & 
-                  knode_gl, 'latitude',asinlatitude(1,:)  ) 
+            !call cable_diag( iDiag0, 'latitude', um1%rows, 1, ktau_gl,  & 
+            !      knode_gl, 'latitude',asinlatitude(1,:)  ) 
 
 
 ! ----------------------------------------------------------------------------------
-            write(chnode,10) node
-   10       format(i3.3)   
+            write(chnode,10) knode_gl
+   10       format(I3.3)   
             filename=trim(trim(basename)//trim(chnode))
- 
+            print *, "jhan:chnode", chnode 
+            print *, "jhan:filename", filename 
+            
+            umi=0; umj=0; uml=0; umn=0            
             do i=1, um1%row_length      
                do j=1, um1%rows     
                  umi(i,j) = i 
@@ -165,8 +168,8 @@ CONTAINS
                enddo   
             enddo   
 
-            call um2cable_rr( umi, cable_umi )
-            call um2cable_rr( umj, cable_umj )
+            call um2cable_irr( umi, cable_umi )
+            call um2cable_irr( umj, cable_umj )
             
             cable_uml = pack(uml, um1%l_tile_pts)
             cable_umn = pack(umn, um1%l_tile_pts)
@@ -177,72 +180,82 @@ CONTAINS
                write (12517, hfmt1) hcomp, hcompa, hcompb, hcompc, hcompd,hcomp1, hcomp2, hcomp3, hcomp4, hcomp5
                write (12517, *) footer2 
                do i=1, mp 
-                  WRITE(12517,*) , knode_gl, umi, umj, uml, umn, i, cable%lat(i), cable%lon(i),    &
+                  WRITE(12517,dfmt1) , knode_gl, cable_umi(i), cable_umj(i), cable_uml(i), cable_umn(i), &
+                  i, cable%lat(i), cable%lon(i),    &
                      cable%tile_frac(i), veg%iveg(i)  
+!write(12517,hcomp) knode_gl 
+!write(12517,hcompa) cable_umi(i) 
+!write(12517,hcompb) cable_umj(i) 
+!write(12517,hcompc) cable_uml(i) 
+!write(12517,hcompd) cable_umn(i)
+!write(12517,hcomp1) i 
+!write(12517,hcomp2) cable%lat(i) 
+!write(12517,hcomp3) cable%lon(i)
+!write(12517,hcomp4) cable%tile_frac(i) 
+!write(12517,hcomp5) veg%iveg(i)  
                enddo   
                write (12517, *) footer1 
             
             close(12517)
-
 
 ! ----------------------------------------------------------------------------------
 
 
 
 
-          !if(knode_gl==1) then  
-            open(unit=1251,file='rawLongitude',status="unknown", &
-                  action="write", form="formatted",position='append' )
-                  !WRITE(1251,*) , cable%const%math%pi180
-                  WRITE(1251,*) , "" 
-                  do i=1, um1%row_length      
-                     do j=1, um1%rows     
-                        WRITE(1251,*) , i,j, longitude(i,j)
-                     enddo   
-                  enddo   
-            close(1251)
-
-            open(unit=12511,file='c_acoslong',status="unknown", &
-                  action="write", form="formatted",position='append' )
-                  !WRITE(1251,*) , cable%const%math%pi180
-                  WRITE(12511,*) , "" 
-                  do i=1, um1%row_length      
-                     WRITE(12511,*) , i,acoslong(i)
-                  enddo   
-            close(12511)
-
-            open(unit=1252,file='clongitude_pi180',status="unknown", &
-                  action="write", form="formatted",position='append' )
-                  do i=1, um1%row_length      
-                     do j=1, um1%rows     
-                        WRITE(1252,*) , i,j, new_longitude(i,j)
-                     enddo   
-                  enddo   
-            close(1252)
-            open(unit=1253,file='cable_lon',status="unknown", &
-                  action="write", form="formatted",position='append' )
-                  do i=1, mp 
-                     WRITE(1253,*) , i, cable%lon(i)
-                  enddo   
-            close(1253)
-            !endif
-             
-            call cable_diag( iDiag1, 'longitude', um1%row_length, 1, ktau_gl,  & 
-                  knode_gl, 'longitude', ( new_longitude(:,1) ) ) 
-        
-            !write indexes for tile, lat, lon
-            call cable_diag( iDiag2, 'lat_index', mp, 1, ktau_gl,  & 
-                  knode_gl, 'lat', cable%lat )
-            call cable_diag( iDiag3, 'lon_index', mp, 1, ktau_gl,  & 
-                  knode_gl, 'lon', cable%lon )
-            
-            !this should be integer-ed. typecast for now
-            call cable_diag( iDiag4, 'tile_index', mp, 1, ktau_gl,  & 
-                  knode_gl, 'tile', real(cable%tile) )
-            
-            call cable_diag( iDiag5, 'tile_frac', mp, 1, ktau_gl,  & 
-                  knode_gl, 'tile_frac', cable%tile_frac )
-            
+!          !if(knode_gl==1) then  
+!            open(unit=1251,file='rawLongitude',status="unknown", &
+!                  action="write", form="formatted",position='append' )
+!                  !WRITE(1251,*) , cable%const%math%pi180
+!                  WRITE(1251,*) , "" 
+!                  do i=1, um1%row_length      
+!                     do j=1, um1%rows     
+!                        WRITE(1251,*) , i,j, longitude(i,j)
+!                     enddo   
+!                  enddo   
+!            close(1251)
+!
+!            open(unit=12511,file='c_acoslong',status="unknown", &
+!                  action="write", form="formatted",position='append' )
+!                  !WRITE(1251,*) , cable%const%math%pi180
+!                  WRITE(12511,*) , "" 
+!                  do i=1, um1%row_length      
+!                     WRITE(12511,*) , i,acoslong(i)
+!                  enddo   
+!            close(12511)
+!
+!            open(unit=1252,file='clongitude_pi180',status="unknown", &
+!                  action="write", form="formatted",position='append' )
+!                  do i=1, um1%row_length      
+!                     do j=1, um1%rows     
+!                        WRITE(1252,*) , i,j, new_longitude(i,j)
+!                     enddo   
+!                  enddo   
+!            close(1252)
+!            open(unit=1253,file='cable_lon',status="unknown", &
+!                  action="write", form="formatted",position='append' )
+!                  do i=1, mp 
+!                     WRITE(1253,*) , i, cable%lon(i)
+!                  enddo   
+!            close(1253)
+!            !endif
+!             
+!            call cable_diag( iDiag1, 'longitude', um1%row_length, 1, ktau_gl,  & 
+!                  knode_gl, 'longitude', ( new_longitude(:,1) ) ) 
+!        
+!            !write indexes for tile, lat, lon
+!            call cable_diag( iDiag2, 'lat_index', mp, 1, ktau_gl,  & 
+!                  knode_gl, 'lat', cable%lat )
+!            call cable_diag( iDiag3, 'lon_index', mp, 1, ktau_gl,  & 
+!                  knode_gl, 'lon', cable%lon )
+!            
+!            !this should be integer-ed. typecast for now
+!            call cable_diag( iDiag4, 'tile_index', mp, 1, ktau_gl,  & 
+!                  knode_gl, 'tile', real(cable%tile) )
+!            
+!            call cable_diag( iDiag5, 'tile_frac', mp, 1, ktau_gl,  & 
+!                  knode_gl, 'tile_frac', cable%tile_frac )
+!            
           !endif  
          
       
@@ -1062,6 +1075,32 @@ SUBROUTINE um2cable_rr(umvar,cablevar)
 
 END SUBROUTINE um2cable_rr
 
+!========================================================================
+
+SUBROUTINE um2cable_irr(umvar,cablevar)
+   USE cable_def_types_mod, ONLY : mp
+   USE cable_um_tech_mod,   ONLY :um1
+ 
+   integer, INTENT(IN), DIMENSION(um1%row_length, um1%rows) :: umvar   
+   integer, INTENT(INOUT), DIMENSION(mp) :: cablevar
+   integer, DIMENSION(um1%land_pts,um1%ntiles) :: fvar   
+   INTEGER :: n,k,l,j,i
+
+      fvar = 0.0
+      DO N=1,um1%NTILES                     
+         DO K=1,um1%TILE_PTS(N)
+            L = um1%TILE_INDEX(K,N)
+            J=(um1%LAND_INDEX(L)-1)/um1%row_length + 1
+            I = um1%LAND_INDEX(L) - (J-1)*um1%row_length
+            fvar(L,N) = umvar(I,J)
+         ENDDO
+      ENDDO
+      cablevar =  pack(fvar,um1%l_tile_pts)
+
+END SUBROUTINE um2cable_irr
+
+
+!========================================================================
 
 !========================================================================
 !========================================================================
