@@ -47,7 +47,8 @@ module cable_data_mod
 
    type model_params
 
-      INTEGER, POINTER ::                                                      &
+      !INTEGER, POINTER ::                                                      &
+      INTEGER ::                                                      &
          endstep,            & !       
          row_length, rows,  & !
          sm_levels,          & !
@@ -57,7 +58,7 @@ module cable_data_mod
          timestep_number,    & !
          mype
 
-      REAL, POINTER ::                                                      &
+      REAL ::                                                      &
          timestep_width
       
       REAL, DIMENSION(:), POINTER ::                                           &
@@ -124,10 +125,11 @@ module cable_data_mod
    ! TYPEd vars pased onto cable after UM version being collected 
    type UM_params
 
-      LOGICAL, POINTER ::                                                      &
+      LOGICAL ::                                                      &
          L_cable
 
-      INTEGER, POINTER ::                                                      &
+      !INTEGER, POINTER ::                                                      &
+      INTEGER ::                                                      &
          dim_cs1, dim_cs2     !
 
       INTEGER, DIMENSION(:), POINTER ::                                        &
@@ -327,7 +329,7 @@ contains
 subroutine set_endstep_umodel(fendstep)
    integer, target :: fendstep
 
-      cable% mp% endstep            => fendstep
+      cable% mp% endstep            = fendstep
 
 end subroutine set_endstep_umodel
 
@@ -340,11 +342,11 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
                albsoil, lw_down, cosz, ls_rain, ls_snow, pstar, CO2_MMR,         &
                sthu, smcl, sthf, GS, canopy_gb , land_albedo )
 
-   LOGICAL, target ::                                                          &
+   LOGICAL ::                                                          &
       UM_eq_TRUE,    & !
       L_CABLE          !
    
-   INTEGER, target ::                                              &
+   INTEGER ::                                              &
       a_step,  & !
       row_length, rows, &
       land_pts,      &
@@ -356,10 +358,10 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       land_index
    
    ! vn8.6 fudged at present as NA in JULES
-   INTEGER, target :: mype
+   INTEGER :: mype
 
    ! integer, target : elsewhere. UM vn 8.6 atm_step carries as REAL
-   REAL, target::                                              &
+   REAL ::                                              &
       timestep_len
 
    ! passed from M 8.6 as cos_theta....
@@ -427,19 +429,18 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       allocate( cable% um% TOT_ALB(land_pts,ntiles)        )
    endif
   
-      cable% um% L_cable            => L_cable
-      cable% mp% mype               => mype
-      !cable% mp% endstep            => endstep     
-      cable% mp% timestep_number    => a_step
-      cable% mp% timestep_width     => timestep_len
-      cable% mp% row_length         => row_length 
-      cable% mp% rows               => rows        
-      cable% mp% land_pts           => land_pts
-      cable% mp% ntiles             => ntiles
-      cable% mp% sm_levels          => sm_levels
+      cable% um% L_cable            = L_cable
+      cable% mp% mype               = mype
+      cable% mp% timestep_number    = a_step
+      cable% mp% timestep_width     = timestep_len
+      cable% mp% row_length         = row_length 
+      cable% mp% rows               = rows        
+      cable% mp% land_pts           = land_pts
+      cable% mp% ntiles             = ntiles
+      cable% mp% sm_levels          = sm_levels
       
-      cable% um% dim_cs1           => dim_cs1
-      cable% um% dim_cs2           => dim_cs2
+      cable% um% dim_cs1           = dim_cs1
+      cable% um% dim_cs2           = dim_cs2
 
       cable% cable% tsoil_tile       =>  tsoil_tile   
       cable% cable% smcl_tile        =>  smcl_tile    
@@ -614,7 +615,7 @@ SUBROUTINE cable_control2( npft, tile_frac, snow_tile, vshr_land, canopy,      &
               RESP_P_FT, G_LEAF, Radnet_TILE, Lying_snow, surf_roff,           &
               sub_surf_roff, tot_tfall, t_soil )
 
-   INTEGER, target ::                                              &
+   INTEGER ::                                              &
       npft 
 
    REAL, DIMENSION(:,:), TARGET:: &
@@ -662,7 +663,7 @@ SUBROUTINE cable_control2( npft, tile_frac, snow_tile, vshr_land, canopy,      &
    
       !CALL print_control_args()
 
-      cable% mp% npft            => npft
+      cable% mp% npft            = npft
       cable% ppar% tile_frac     => tile_frac
       cable% um% snow_tile       => snow_tile
       cable% um% canopy => canopy
