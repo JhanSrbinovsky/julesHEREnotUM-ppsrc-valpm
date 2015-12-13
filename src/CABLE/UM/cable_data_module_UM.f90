@@ -47,7 +47,6 @@ module cable_data_mod
 
    type model_params
 
-      !INTEGER, POINTER ::                                                      &
       INTEGER ::                                                      &
          endstep,            & !       
          row_length, rows,  & !
@@ -365,10 +364,8 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       timestep_len
 
    ! passed from M 8.6 as cos_theta....
-   REAL, DIMENSION(:,:), TARGET :: &
-      latitude
-
-   REAL, DIMENSION(:,:), TARGET :: &
+   REAL, DIMENSION(row_length,rows) :: &
+      latitude, &
       longitude
 
    REAL, DIMENSION(:), TARGET :: &
