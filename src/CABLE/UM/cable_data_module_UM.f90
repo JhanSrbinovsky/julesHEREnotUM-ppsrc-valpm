@@ -127,7 +127,6 @@ module cable_data_mod
       LOGICAL ::                                                      &
          L_cable
 
-      !INTEGER, POINTER ::                                                      &
       INTEGER ::                                                      &
          dim_cs1, dim_cs2     !
 
@@ -493,69 +492,6 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
 
    first_call=.FALSE.
    
-   open(unit=12511,file='c_data_mp_vars',status="unknown", &
-                  action="write", form="formatted",position='append' )
-         write(12511,*) " mype ",  mype 
-         write(12511,*) " UM_eq_TRUE ", UM_eq_TRUE 
-         write(12511,*) " L_cable ",L_cable 
-         write(12511,*) " a_step ", a_step 
-         write(12511,*) " timestep_len ", timestep_len 
-         write(12511,*) " row_length ",    row_length    
-         write(12511,*) " rows ", rows 
-         write(12511,*) " land_pts ",land_pts 
-         write(12511,*) " ntiles ", ntiles 
-         write(12511,*) " sm_levels ",sm_levels 
-         write(12511,*) " dim_cs1 ", dim_cs1 
-         write(12511,*) " dim_cs2 ", dim_cs2  
-         write(12511,*) " sh(latitude) ",shape(latitude)
-         write(12511,*) " sh(cable%%latitude) ",shape(cable%mp%latitude)
-         write(12511,*) " latitude 1,1 1,2 ",latitude(1,1),latitude(1,2)
-         write(12511,*) " latitude 2,1 ",latitude(2,1)
-         write(12511,*) " longitude ", longitude(1,1), longitude(1,2)
-      close(12511)
-
-      open(unit=12511,file='c_data_lat',status="unknown", &
-                  action="write", form="formatted",position='append' )
-         WRITE(12511,*) , "" 
-         do i=1, row_length      
-            do j=1, rows     
-               WRITE(12511,*) , i,j, latitude(i,j)
-            enddo   
-         enddo   
-     close(12511)
-
-      open(unit=12511,file='c_data_lon',status="unknown", &
-             action="write", form="formatted",position='append' )
-             !WRITE(1251,*) , cable%const%math%pi180
-         WRITE(12511,*) , "" 
-         do i=1, row_length      
-            do j=1, rows     
-               WRITE(12511,*) , i,j, longitude(i,j)
-            enddo   
-         enddo   
-       close(12511)
-      
-      open(unit=12511,file='c_data_cablelat',status="unknown", &
-         action="write", form="formatted",position='append' )
-         WRITE(12511,*) , "" 
-         do i=1, row_length      
-            do j=1, rows     
-               WRITE(12511,*) , i,j, cable%mp%latitude(i,j)
-            enddo   
-         enddo   
-      close(12511)
-
-      open(unit=12511,file='c_data_a_cablelon',status="unknown", &
-            action="write", form="formatted",position='append' )
-            WRITE(12511,*) , "" 
-            do i=1, row_length      
-               do j=1, rows     
-                  WRITE(12511,*) , i,j, cable%mp%longitude(i,j)
-               enddo   
-            enddo   
-      close(12511)
-
-
 contains
    
    subroutine print_control_args()

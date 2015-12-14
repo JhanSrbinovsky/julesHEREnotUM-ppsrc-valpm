@@ -61,7 +61,7 @@ SUBROUTINE interface_UM_data( row_length, rows, land_pts, ntiles,              &
       alloc_um_interface_types,  & ! mem. allocation subr (um1, kblum%) 
       dealloc_vegin_soilin,      & ! mem. allocation subr (vegin%,soilin%)
       um1,                       & ! um1% type UM basics 4 convenience
-      kblum_veg, veg                    ! kblum_veg% reset UM veg vars 4 CABLE use
+      kblum_veg                    ! kblum_veg% reset UM veg vars 4 CABLE use
 
    USE cable_common_module, ONLY :                                             &
       cable_user,          & ! cable_user% type inherits user definition
@@ -267,6 +267,13 @@ SUBROUTINE interface_UM_data( row_length, rows, land_pts, ntiles,              &
       
       ENDIF
          
+      !jhan: turn this off until implementation finalised
+      !--- initialize latitude/longitude & mapping IF required
+      if ( first_call ) & 
+         call initialize_maps(latitude,longitude, tile_index_mp)
+
+
+
       !--- read in soil (and veg) parameters 
       IF(first_call)                                                        & 
          CALL  get_type_parameters(logn,vegparmnew)
@@ -300,11 +307,6 @@ SUBROUTINE interface_UM_data( row_length, rows, land_pts, ntiles,              &
                    CO2_MMR,CO2_3D,CO2_DIM_LEN,CO2_DIM_ROW,L_CO2_INTERACTIVE )   
 
  
-      !jhan: turn this off until implementation finalised
-      !--- initialize latitude/longitude & mapping IF required
-      if ( first_call ) & 
-         call initialize_maps(latitude,longitude, tile_index_mp)
-
       IF( first_call ) THEN
          CALL init_bgc_vars() 
          CALL init_sumflux_zero() 
@@ -354,14 +356,7 @@ SUBROUTINE assign_um_basics_to_um1( row_length, rows, land_pts, ntiles,     &
    INTEGER, INTENT(IN), DIMENSION(land_pts, ntiles)  :: tile_index
    REAL, INTENT(IN), DIMENSION(land_pts, ntiles)  :: tile_frac 
    LOGICAL, INTENT(IN), DIMENSION(land_pts,ntiles)  :: l_tile_pts 
-   integer :: I, J 
-
-do i=1,land_pts
-do j=1,ntiles  
-   print *, "frac ", tile_frac(i,j)
-enddo
-enddo
-
+     
       um1%row_length = row_length
       um1%rows = rows
       um1%land_pts = land_pts
