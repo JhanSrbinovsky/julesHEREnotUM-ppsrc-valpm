@@ -39,6 +39,7 @@ USE switches  , ONLY : l_epot_corr
 
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
+USE cable_data_mod, only : cable
 IMPLICIT NONE
 
 LOGICAL                                                           &
@@ -259,10 +260,11 @@ INTEGER                                                           &
 REAL                                                              &
  ftl_old                                                          &
           ! Used to hold current value of FTL_GB before updating
-,gamma_1                                                          &
+!,gamma_1                                                          &
 ,gamma1                                                           &
 ,gamma2
 
+real :: gamma_1(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
@@ -419,22 +421,22 @@ IF ( .NOT. l_correct ) THEN
       i = land_index(l) - (j-1)*t_i_length
       lat_ht = lc
       IF (snow_tile(l,n) >  0.) lat_ht = ls
-
+      if(cable% um% l_cable) gamma_1(i,j) = 0.
       rhokpm(l,n) = rhokh_1(l,n) / ( ashtf_prime_tile(l,n) +      &
                rhokh_1(l,n)*(lat_ht*alpha1(l,n)*resft(l,n) + cp) )
 
       apart(i,j,1)=apart(i,j,1) - tile_frac(l,n) *                &
-               gamma_1 * rhokpm(l,n) *                            &
+               gamma_1(i,j) * rhokpm(l,n) *                            &
             ( lat_ht*resft(l,n)*rhokh_1(l,n)*alpha1(l,n) +        &
                          ashtf_prime_tile(l,n) )
       apart(i,j,2)=apart(i,j,2) + tile_frac(l,n) *                &
-               gamma_1 * rhokpm(l,n) *                            &
+               gamma_1(i,j) * rhokpm(l,n) *                            &
                lat_ht*resft(l,n)*rhokh_1(l,n)
       bpart(i,j,1)=bpart(i,j,1) + tile_frac(l,n) *                &
-               gamma_1 * resft(l,n)*rhokpm(l,n) *                 &
+               gamma_1(i,j) * resft(l,n)*rhokpm(l,n) *                 &
                cp*rhokh_1(l,n)*alpha1(l,n)
       bpart(i,j,2)=bpart(i,j,2) - tile_frac(l,n) *                &
-               gamma_1 * resft(l,n)*rhokpm(l,n) *                 &
+               gamma_1(i,j) * resft(l,n)*rhokpm(l,n) *                 &
                ( cp*rhokh_1(l,n) + ashtf_prime_tile(l,n) )
     END DO
   END DO
@@ -446,12 +448,12 @@ IF ( .NOT. l_correct ) THEN
       IF ( flandg(i,j) < 1.0 ) THEN
 ! Note, for icy points, this is the leads region in which case ice_fract=0 
         apart(i,j,1)= flandg(i,j)*apart(i,j,1)                    &
-       - gamma_1 * ( 1.0 - flandg(i,j) ) * rhokh1_sice(i,j)       &
+       - gamma_1(i,j) * ( 1.0 - flandg(i,j) ) * rhokh1_sice(i,j)       &
        * ( 1.0 - ice_fract(i,j) ) 
         apart(i,j,2)= flandg(i,j)*apart(i,j,2)
         bpart(i,j,1)= flandg(i,j)*bpart(i,j,1)
         bpart(i,j,2)= flandg(i,j)*bpart(i,j,2)                    &
-       - gamma_1*( 1.0 - flandg(i,j) )*rhokh1_sice(i,j)           &
+       - gamma_1(i,j)*( 1.0 - flandg(i,j) )*rhokh1_sice(i,j)           &
        * ( 1.0 - ice_fract(i,j) )    
  
       END IF
@@ -469,20 +471,20 @@ IF ( .NOT. l_correct ) THEN
                  + rhokh1_sice(i,j)*(ls*alpha1_sice(i,j,n) + cp) )
 
           apart(i,j,1)=apart(i,j,1)                                    &
-          - gamma_1 * (1.0-flandg(i,j)) * ice_fract_cat(i,j,n)         &
+          - gamma_1(i,j) * (1.0-flandg(i,j)) * ice_fract_cat(i,j,n)         &
           * rhokpm_sice(i,j,n) *                                       &
           ( ls*rhokh1_sice(i,j)*alpha1_sice(i,j,n) + ashtf_prime(i,j,n) )
 
           apart(i,j,2)=apart(i,j,2)                                    &
-          + gamma_1 * (1.0-flandg(i,j)) *ice_fract_cat(i,j,n)          &
+          + gamma_1(i,j) * (1.0-flandg(i,j)) *ice_fract_cat(i,j,n)          &
           * rhokpm_sice(i,j,n) * ls*rhokh1_sice(i,j)
 
           bpart(i,j,1)=bpart(i,j,1)                                    &
-          + gamma_1 * ice_fract_cat(i,j,n) * ( 1.0 - flandg(i,j) )     &
+          + gamma_1(i,j) * ice_fract_cat(i,j,n) * ( 1.0 - flandg(i,j) )     &
           * rhokpm_sice(i,j,n) *cp*rhokh1_sice(i,j)*alpha1_sice(i,j,n)
 
           bpart(i,j,2)=bpart(i,j,2)                                    &
-         - gamma_1 * ice_fract_cat(i,j,n) * ( 1.0 - flandg(i,j) )      &
+         - gamma_1(i,j) * ice_fract_cat(i,j,n) * ( 1.0 - flandg(i,j) )      &
          * rhokpm_sice(i,j,n) *                                        &
          ( cp*rhokh1_sice(i,j) + ashtf_prime(i,j,n) ) 
  
@@ -545,19 +547,19 @@ END DO
       IF (snow_tile(l,n) >  0.) lat_ht = ls
 
       ftl_tile(l,n)=ftl_tile(l,n) -                               &
-               gamma_1 * rhokpm(l,n) *                            &
+               gamma_1(i,j) * rhokpm(l,n) *                            &
             ( lat_ht*resft(l,n)*rhokh_1(l,n)*alpha1(l,n) +        &
                        ashtf_prime_tile(l,n) ) *                  &
          ( dtl1_1(i,j) - ctctq1(i,j)*ftl_gb(i,j) ) +              &
-               gamma_1 * rhokpm(l,n) *                            &
+               gamma_1(i,j) * rhokpm(l,n) *                            &
                lat_ht*resft(l,n)*rhokh_1(l,n) *                   &
          ( dqw1_1(i,j) - ctctq1(i,j)*fqw_gb(i,j) )
 
       fqw_tile(l,n)=fqw_tile(l,n) +                               &
-               gamma_1 * resft(l,n)*rhokpm(l,n) *                 &
+               gamma_1(i,j) * resft(l,n)*rhokpm(l,n) *                 &
                cp*rhokh_1(l,n)*alpha1(l,n) *                      &
          ( dtl1_1(i,j) - ctctq1(i,j)*ftl_gb(i,j) ) -              &
-               gamma_1 * resft(l,n)*rhokpm(l,n) *                 &
+               gamma_1(i,j) * resft(l,n)*rhokpm(l,n) *                 &
                ( cp*rhokh_1(l,n) + ashtf_prime_tile(l,n) ) *      &
          ( dqw1_1(i,j) - ctctq1(i,j)*fqw_gb(i,j) )
 
@@ -572,7 +574,7 @@ END DO
       fqw_land(i,j)=fqw_land(i,j)+fqw_tile(l,n)*tile_frac(l,n)
       ftl_land(i,j)=ftl_land(i,j)+ftl_tile(l,n)*tile_frac(l,n)
 
-      dtstar_tile(l,n) = dtstar_tile(l,n) + gamma_1 *             &
+      dtstar_tile(l,n) = dtstar_tile(l,n) + gamma_1(i,j) *             &
              ( cp * rhokh_1(l,n) *                                &
                ( dtl1_1(i,j) - ctctq1(i,j) * ftl_gb(i,j) ) +      &
                lat_ht * resft(l,n) * rhokh_1(l,n) *               &
@@ -592,19 +594,19 @@ END DO
        IF(flandg(i,j) <  1.0 .AND. ice_fract_cat(i,j,n) >  0.0) THEN
 
         ftl_ice(i,j,n)=ftl_ice(i,j,n) -                           &
-             gamma_1 * rhokpm_sice(i,j,n) *                       &
+             gamma_1(i,j) * rhokpm_sice(i,j,n) *                       &
             ( ls*rhokh1_sice(i,j)*alpha1_sice(i,j,n) +            &
                      ashtf_prime(i,j,n) ) *                       &
             ( dtl1_1(i,j) - ctctq1(i,j)*ftl_gb(i,j) ) +           &
-                     gamma_1 * rhokpm_sice(i,j,n) *               &
+                     gamma_1(i,j) * rhokpm_sice(i,j,n) *               &
                      ls*rhokh1_sice(i,j) *                        &
             ( dqw1_1(i,j) - ctctq1(i,j)*fqw_gb(i,j) )
 
         fqw_ice(i,j,n)=fqw_ice(i,j,n) +                           &
-             gamma_1 * rhokpm_sice(i,j,n) *                       &
+             gamma_1(i,j) * rhokpm_sice(i,j,n) *                       &
              cp*rhokh1_sice(i,j)*alpha1_sice(i,j,n) *             &
             ( dtl1_1(i,j) - ctctq1(i,j)*ftl_gb(i,j) ) -           &
-                 gamma_1 *rhokpm_sice(i,j,n) *                    &
+                 gamma_1(i,j) *rhokpm_sice(i,j,n) *                    &
             ( cp*rhokh1_sice(i,j) + ashtf_prime(i,j,n) ) *        &
             ( dqw1_1(i,j) - ctctq1(i,j)*fqw_gb(i,j) )
 
@@ -614,7 +616,7 @@ END DO
         ftl_sice(i,j)=ftl_sice(i,j) + ftl_ice(i,j,n)              &
                             * ice_fract_cat(i,j,n)/ice_fract(i,j)
 
-        dtstar(i,j,n) = dtstar(i,j,n) + gamma_1 *                 &
+        dtstar(i,j,n) = dtstar(i,j,n) + gamma_1(i,j) *                 &
                 ( cp * rhokh1_sice(i,j) *                         &
                 ( dtl1_1(i,j) - ctctq1(i,j) * ftl_gb(i,j) ) +     &
                    ls * rhokh1_sice(i,j) *                        &

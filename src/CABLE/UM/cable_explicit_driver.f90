@@ -181,12 +181,12 @@ SUBROUTINE cable_explicit_driver( row_length, rows, land_pts, ntiles,npft,     &
       tsoil_tile
    
    REAL :: co2_mmr
-! rml 2/7/13 Extra atmospheric co2 variables
-!   LOGICAL, INTENT(IN) :: L_CO2_INTERACTIVE
-!   INTEGER, INTENT(IN) ::                              &
-!      CO2_DIM_LEN                                      &
-!     ,CO2_DIM_ROW
-!   REAL, INTENT(IN) :: CO2_3D(CO2_DIM_LEN,CO2_DIM_ROW)  ! co2 mass mixing ratio
+   ! rml 2/7/13 Extra atmospheric co2 variables
+   !LOGICAL, INTENT(IN) :: L_CO2_INTERACTIVE
+   !INTEGER, INTENT(IN) ::                              &
+   !  CO2_DIM_LEN                                      &
+   !  ,CO2_DIM_ROW
+   !REAL, INTENT(IN) :: CO2_3D(CO2_DIM_LEN,CO2_DIM_ROW)  ! co2 mass mixing ratio
 
    !___true IF vegetation (tile) fraction is greater than 0
    LOGICAL, DIMENSION(land_pts, ntiles) :: L_tile_pts

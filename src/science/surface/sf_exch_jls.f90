@@ -933,6 +933,20 @@ DO n=1,ntiles
     u_s_std_tile(l,n)=0.0
     chr1p5m(l,n)=0.0
     resfs(l,n)=0.0
+    !CABLE - Lestevens 30oct15
+    if (tile_frac(l,n).eq.0.0) then
+    vfrac_tile(l,n) = 0.0
+    canhc_tile(l,n) = 0.0
+    cd_tile(l,n) = 0.0
+    ch_tile(l,n) = 0.0
+    z0h_tile(l,n) = 0.0
+    z0m_eff_tile(l,n) = 0.0
+    rhokpm(l,n) = 0.0
+    radnet_tile(l,n) = 0.0
+    fraca(l,n) = 0.0
+    resfs(l,n) = 0.0
+    resft(l,n) = 0.0
+    end if
   END DO
 END DO
 
@@ -1118,7 +1132,9 @@ IF(formdrag ==  effective_z0) THEN
      )
   END DO
 END IF
+
    dzsoil = ardzsoil(1) 
+
    CALL cable_control6( z1_tq, z1_uv,                                     & 
                   Fland, ardzsoil, FTL_TILE,                    &
                   FQW_TILE, TSTAR_TILE, U_S, U_S_STD_TILE,               &
@@ -1500,6 +1516,7 @@ DO j=tdims%j_start,tdims%j_end
   END DO
 END DO
 
+! CABLE ? - Lestevens 30oct15
 ! Land tiles
 DO n=1,ntiles
   DO l = 1,land_pts

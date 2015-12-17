@@ -177,8 +177,6 @@ SUBROUTINE cable_rad_driver(                                                   &
       
       IF(cable_user%run_diag_level == "BASIC")                                    &     
          CALL basic_diag(subr_name, "Done.") 
-
-
 END SUBROUTINE cable_rad_driver
 
      

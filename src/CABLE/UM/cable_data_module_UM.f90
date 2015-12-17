@@ -325,7 +325,7 @@ contains
 
 ! cable_diag needs this: CALLed from u_model
 subroutine set_endstep_umodel(fendstep)
-   integer, target :: fendstep
+   integer :: fendstep
 
       cable% mp% endstep            = fendstep
 
@@ -338,7 +338,7 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
                latitude, longitude,                                              &
                land_index, bexp, hcon, satcon, sathh, smvcst, smvcwt, smvccl,       &
                albsoil, lw_down, cosz, ls_rain, ls_snow, pstar, CO2_MMR,         &
-               sthu, smcl, sthf, GS, canopy_gb , land_albedo )
+               sthu, smcl, sthf, GS, canopy_gb , land_alb )
 
    LOGICAL ::                                                          &
       UM_eq_TRUE,    & !
@@ -358,7 +358,6 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
    ! vn8.6 fudged at present as NA in JULES
    INTEGER :: mype
 
-   ! integer, target : elsewhere. UM vn 8.6 atm_step carries as REAL
    REAL ::                                              &
       timestep_len
 
@@ -387,7 +386,7 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       sthu,       &
       smcl,       &
       sthf,       &
-      land_albedo 
+      land_alb
  
    REAL, target::                                              &
       co2_mmr
@@ -460,7 +459,7 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       cable% um% sthf             => sthf        
       cable% um% smcl             => smcl        
       
-      cable% um% land_alb         => land_albedo   
+      cable% um% land_alb         => land_alb   
 
       !vn8.6 uses some different names morereflective of names in UM
       cable% um% bexp     => bexp 
@@ -491,7 +490,49 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       cable% tmp% c_virtual =  1. / cable% tmp% Epsilon - 1. 
 
    first_call=.FALSE.
-   
+
+      open(unit=12511,file='c_data_lat',status="unknown", &
+                  action="write", form="formatted",position='append' )
+         WRITE(12511,*) , "" 
+         do i=1, row_length      
+            do j=1, rows     
+               WRITE(12511,*) , i,j, latitude(i,j)
+            enddo   
+         enddo   
+     close(12511)
+
+      open(unit=12511,file='c_data_lon',status="unknown", &
+             action="write", form="formatted",position='append' )
+             !WRITE(1251,*) , cable%const%math%pi180
+         WRITE(12511,*) , "" 
+         do i=1, row_length      
+            do j=1, rows     
+               WRITE(12511,*) , i,j, longitude(i,j)
+            enddo   
+         enddo   
+       close(12511)
+      
+      open(unit=12511,file='c_data_cablelat',status="unknown", &
+         action="write", form="formatted",position='append' )
+         WRITE(12511,*) , "" 
+         do i=1, row_length      
+            do j=1, rows     
+               WRITE(12511,*) , i,j, cable%mp%latitude(i,j)
+            enddo   
+         enddo   
+      close(12511)
+
+      open(unit=12511,file='c_data_a_cablelon',status="unknown", &
+            action="write", form="formatted",position='append' )
+            WRITE(12511,*) , "" 
+            do i=1, row_length      
+               do j=1, rows     
+                  WRITE(12511,*) , i,j, cable%mp%longitude(i,j)
+               enddo   
+            enddo   
+      close(12511)
+
+
 contains
    
    subroutine print_control_args()
@@ -528,7 +569,7 @@ contains
    print *,"sthf ", sthf(1:2,1:2)
    print *,"GS ", GS(1:2)
    print *,"canopy_gb ", canopy_gb(1:2)
-   print *,"land_albedo ", land_albedo (1:2,1:2)
+   print *,"land_albedo ", land_alb(1:2,1:2)
 End subroutine print_control_args
 
 
@@ -853,6 +894,7 @@ END SUBROUTINE cable_control5
 !vn 8.6 standalone used above hack as surf_down_sw N/A
 SUBROUTINE cable_glue_rad_init( surf_down_sw )
    Real, dimension(:,:,:), target :: surf_down_sw
+   
       !jhan:vn8.5: it looks like this memory is reallocated and we end up pointing
       !to grabage by the time we use surf_down_sw in CABLE. !Danger in doing this
       !for all fields may be that the value is notreturned properly?

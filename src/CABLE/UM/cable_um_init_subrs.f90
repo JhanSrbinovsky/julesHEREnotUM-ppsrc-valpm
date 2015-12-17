@@ -525,7 +525,7 @@ SUBROUTINE initialize_radiation( sw_down, lw_down, cos_zenith_angle,           &
    USE cable_data_module,   ONLY : PHYS, OTHER
    USE cable_um_tech_mod,   ONLY : um1, rad, soil, met,                        & 
                                    conv_rain_prevstep, conv_snow_prevstep
-   USE cable_common_module, ONLY : cable_runtime, cable_user
+   USE cable_common_module, ONLY : cable_runtime, cable_user, ktau_gl
 
    REAL, INTENT(INOUT), DIMENSION(um1%row_length, um1%rows) :: sw_down
    
@@ -595,6 +595,12 @@ SUBROUTINE initialize_radiation( sw_down, lw_down, cos_zenith_angle,           &
       CALL um2cable_rr( QW_1, met%qv)
       CALL um2cable_rr( VSHR_LAND, met%ua)
       CALL um2cable_rr( PSTAR*0.01, met%pmb)
+      
+      if (ktau_gl==1) then
+         where (soil%isoilm(:) == 9)
+            met%tk(:) = 230.
+         end where
+      end if
    
       !---re-set some of CABLE's forcing variables
       met%precip   =  met%precip + met%precip_sn 
@@ -674,7 +680,7 @@ SUBROUTINE initialize_soilsnow( smvcst, tsoil_tile, sthf_tile, smcl_tile,      &
    USE cable_def_types_mod,  ONLY : mp, msn
    USE cable_data_module,   ONLY : PHYS
    USE cable_um_tech_mod,   ONLY : um1, soil, ssnow, met, bal, veg
-   USE cable_common_module, ONLY : cable_runtime, cable_user
+   USE cable_common_module, ONLY : cable_runtime, cable_user, ktau_gl
    
    REAL, INTENT(IN), DIMENSION(um1%land_pts) :: smvcst
    
@@ -721,16 +727,31 @@ SUBROUTINE initialize_soilsnow( smvcst, tsoil_tile, sthf_tile, smcl_tile,      &
 
       TFRZ => PHYS%TFRZ
 
-      snow_tile = MIN(max_snow_depth, snow_tile)
+      if (ktau_gl==1) then
+         snow_tile = MIN(max_snow_depth, snow_tile*0.)
+      else
+         snow_tile = MIN(max_snow_depth, snow_tile)
+      end if
 
       ssnow%snowd  = PACK(SNOW_TILE,um1%l_tile_pts)
+      if (ktau_gl==1) then
+          where (soil%isoilm == 2)
+            ssnow%snowd = 0.
+          end where
+      end if
       ssnow%ssdnn  = PACK(SNOW_RHO1L,um1%l_tile_pts)  
       ssnow%isflag = PACK(ISNOW_FLG3L,um1%l_tile_pts)  
       
       DO J=1, msn
-         
+
          ssnow%sdepth(:,J)= PACK(SNOW_DEPTH3L(:,:,J),um1%l_tile_pts)
          ssnow%smass(:,J) = PACK(SNOW_MASS3L(:,:,J),um1%l_tile_pts)  
+         if (ktau_gl==1) then
+         where (soil%isoilm(:) == 2)
+            ssnow%sdepth(:,J) = 0.
+            ssnow%smass(:,J) = 0.
+         end where
+         end if
          ssnow%ssdn(:,J)  = PACK(SNOW_RHO3L(:,:,J),um1%l_tile_pts)  
          ssnow%tggsn(:,J) = PACK(SNOW_TMP3L(:,:,J),um1%l_tile_pts)  
          ssnow%sconds(:,J)= PACK(SNOW_COND(:,:,J),um1%l_tile_pts)  
@@ -748,6 +769,11 @@ SUBROUTINE initialize_soilsnow( smvcst, tsoil_tile, sthf_tile, smcl_tile,      &
        
       DO J=1,um1%sm_levels
          ssnow%tgg(:,J) = PACK(TSOIL_TILE(:,:,J),um1%l_tile_pts)
+         if (ktau_gl==1) then
+         where (soil%isoilm(:) == 9)
+            ssnow%tgg(:,J) = 230.
+         end where
+         end if
       ENDDO 
       
       ssnow%snage = PACK(SNAGE_TILE, um1%l_tile_pts)

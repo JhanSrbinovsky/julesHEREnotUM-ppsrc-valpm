@@ -57,6 +57,7 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 
    USE cable_def_types_mod, ONLY : mp
    USE cable_data_module,   ONLY : PHYS
+   USE cable_data_mod,      ONLY : cable
    USE cable_um_tech_mod,   ONLY : um1, conv_rain_prevstep, conv_snow_prevstep,&
                                   air, bgc, canopy, met, bal, rad, rough, soil,&
                                   ssnow, sum_flux, veg, basic_diag
@@ -145,16 +146,16 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       SNOW_COND        !
 
    REAL, DIMENSION(um1%land_pts,um1%ntiles) ::                              &
-      FRS_TILE,   & ! Local
-      NEE_TILE,   & ! Local
-      NPP_TILE,   & ! Local
-      GPP_TILE,   & ! Local
-      GLEAF_TILE, & ! Local, kdcorbin, 10/10
-      FRP_TILE,   &
+!     FRS_TILE,   & ! Local
+!     NEE_TILE,   & ! Local
+!     NPP_TILE,   & ! Local
+!     GPP_TILE,   & ! Local
+!     GLEAF_TILE, & ! Local, kdcorbin, 10/10
+!     FRP_TILE,   &
       NPP_FT,     &
-      NPP_FT_old, &
-      GPP_FT,     &
-      GPP_FT_old       
+!     NPP_FT_old, &
+      GPP_FT      
+!     GPP_FT_old       
 
    REAL, DIMENSION(um1%land_pts) ::                                         &
       SNOW_GRD,    & !
@@ -173,13 +174,13 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       TSTAR_TILE,    &
       RESP_S_TILE,   & 
       RESP_P_FT,     &
-      RESP_P_FT_old, &
+!     RESP_P_FT_old, &
       G_LEAF,        &
       TRANSP_TILE
 
    REAL ::                                                                     &
       RESP_S(um1%LAND_PTS,DIM_CS1),     &
-      RESP_S_old(um1%LAND_PTS,DIM_CS1), &
+!     RESP_S_old(um1%LAND_PTS,DIM_CS1), &
       RESP_S_TOT(DIM_CS2)    
 
    REAL, DIMENSION(um1%LAND_PTS,um1%NTILES,10) ::                              &
@@ -204,6 +205,7 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       kstart = 1
 
    REAL, DIMENSION(mp) ::                                                      & 
+      vfrac,&
       dtlc, & 
       dqwc
    
@@ -219,6 +221,9 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
    LOGICAL, SAVE :: first_cable_call = .TRUE.
    !jhan:clobbering soil temp
    !integer :: i,j,k, ijctr
+
+!if (cable% um% cycleno == 1) then
+!if (cable% um% cycleno == cable% um% numcycles) then
 
       !DO J=1,um1%sm_levels
       !   ssnow%tgg(:,J) = PACK(TSOIL_TILE(:,:,J),um1%l_tile_pts)
@@ -257,7 +262,7 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
    
       ! FLAGS def. specific call to CABLE from UM
       cable_runtime%um_explicit = .FALSE.
-      cable_runtime%um_implicit = .TRUE.
+      !cable_runtime%um_implicit = .TRUE.
    
       dtlc = 0. ; dqwc = 0.
 
@@ -309,6 +314,10 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 !      CALL sumcflux(ktau_gl,kstart,kend_gl,TIMESTEP,bgc,canopy,soil,ssnow,      &
 !                    sum_flux,veg,met,casaflux,l_vcmaxFeedbk)
 
+      !cable_runtime%um_implicit = .FALSE.
+!end if ! cycleno
+
+!if (cable% um% cycleno == cable% um% numcycles) then
       CALL implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
                             SMVCST, STHF, STHF_TILE, STHU, STHU_TILE,          &
                             snow_tile, SNOW_RHO1L ,ISNOW_FLG3L, SNOW_DEPTH3L,  &
@@ -340,11 +349,13 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 !      endif
        
 ! DEPENDS ON: cable_hyd_driver
-      call cable_hyd_driver( SNOW_TILE, LYING_SNOW, SURF_ROFF, SUB_SURF_ROFF,  &
+   call cable_hyd_driver( SNOW_TILE, LYING_SNOW, SURF_ROFF, SUB_SURF_ROFF,  &
                              TOT_TFALL )
+   vfrac = pack(um1%tile_frac,um1%l_tile_pts)
 
+   cable_runtime%um_implicit = .FALSE.
 
-      cable_runtime%um_implicit = .FALSE.
+!end if ! cycleno
   
    IF(cable_user%run_diag_level == "BASIC")                                    &     
       CALL basic_diag(subr_name, "Done.") 
@@ -356,6 +367,10 @@ END SUBROUTINE cable_implicit_driver
 !========================================================================= 
 !========================================================================= 
         
+
+! rml 30/10/15 rml: rewrite carbon fluxes - previous version seemed
+! unnecessarily complicated by allowing for fluxes from sea-ice when don't
+! need to account for any carbon flux not from land fraction.
 SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
                             SMVCST, STHF, STHF_TILE, STHU, STHU_TILE,          &
                             snow_tile, SNOW_RHO1L ,ISNOW_FLG3L, SNOW_DEPTH3L,  &
@@ -438,19 +453,19 @@ SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
       SNOW_COND 
 
    REAL, dimension(um1%land_pts,um1%ntiles) ::                                 &
-      FRS_TILE,   & ! Local
-      NEE_TILE,   & ! Local
-      NPP_TILE,   & ! Local
-      GPP_TILE,   & ! Local
-      SURF_HTF_T_CAB, &
-      GLEAF_TILE, & ! Local, kdcorbin, 10/10
-      FRP_TILE
+!     FRS_TILE,   & ! Local
+!     NEE_TILE,   & ! Local
+!     NPP_TILE,   & ! Local
+!     GPP_TILE,   & ! Local
+      SURF_HTF_T_CAB
+!     GLEAF_TILE, & ! Local, kdcorbin, 10/10
+!     FRP_TILE
 
    REAL, dimension(um1%land_pts,um1%ntiles) ::                           &
       NPP_FT,     &
-      NPP_FT_old, &
-      GPP_FT,     &
-      GPP_FT_old
+!     NPP_FT_old, &
+      GPP_FT       
+!     GPP_FT_old
 
    REAL, dimension(um1%land_pts) ::                                            &
       RESP_P,     & 
@@ -475,7 +490,7 @@ SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
       TSTAR_TILE,    &
       RESP_S_TILE,   & 
       RESP_P_FT,     &
-      RESP_P_FT_old, &
+!     RESP_P_FT_old, &
       G_LEAF,        &
       TRANSP_TILE
 
@@ -501,20 +516,11 @@ SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
    
    REAL, POINTER :: TFRZ
    
-   LOGICAL, SAVE :: first_call = .TRUE.
+!  LOGICAL, SAVE :: first_call = .TRUE.
    
    IF(cable_user%run_diag_level == "BASIC")                                    &     
       CALL basic_diag(subr_name, "Called.") 
 
-   if( first_call ) then
-      NPP_FT = 0.
-      NPP_FT_old = 0.
-      GPP_FT = 0.
-      GPP_FT_old = 0.       
-      RESP_P =0.
-      NPP =0.
-      first_call = .false.
-   endif    
       TFRZ => PHYS%TFRZ
   
       !--- set UM vars to zero
@@ -603,26 +609,6 @@ SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
      CANOPY_TILE    = UNPACK(canopy%cansto, um1%L_TILE_PTS, miss)
      CANOPY_GB      = SUM(um1%TILE_FRAC * CANOPY_TILE,2)
 
-     ! Lestevens - Passing CO2 from CABLE to bl_trmix_dd.F90
-     FRS_TILE       = UNPACK(canopy%frs, um1%L_TILE_PTS, miss)
-     NEE_TILE       = UNPACK(canopy%fnee, um1%L_TILE_PTS, miss)
-     NPP_TILE       = UNPACK(canopy%fnpp, um1%L_TILE_PTS, miss)
-     GLEAF_TILE     = UNPACK(canopy%frday,um1%L_TILE_PTS, miss)
-
-      IF( cable_user%leaf_respiration == 'on' .OR.                             &
-           cable_user%leaf_respiration == 'ON') THEN
-         GPP_TILE = UNPACK(canopy%fnpp+canopy%frp, um1%L_TILE_PTS, miss)
-      ELSE 
-         GPP_TILE = UNPACK(canopy%fnpp+canopy%frp+canopy%frday,  &
-                            um1%L_TILE_PTS, miss)
-      ENDIF
-
-     FRP_TILE       = UNPACK(canopy%frp, um1%L_TILE_PTS, miss)
-     NPP_FT_old     = NPP_FT
-     GPP_FT_old     = GPP_FT
-     RESP_P_FT_old  = RESP_P_FT
-     RESP_S_old     = RESP_S
-
      !initialse full land grids and retain coastal grid fluxes
       DO N=1,um1%NTILES
          DO K=1,um1%TILE_PTS(N)
@@ -656,56 +642,57 @@ SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
          ENDDO
       ENDDO
 
-      DO N=1,um1%NTILES
-         DO K=1,um1%TILE_PTS(N)
-            L = um1%TILE_INDEX(K,N)
-            IF( FLAND(L) == 1.0) THEN
-               NPP(L)=0.; NPP_FT(L,N)=0.; GPP(L)=0.; GPP_FT(L,N)=0.
-               RESP_P(L)=0.; RESP_P_FT(L,N)=0.; RESP_S(L,:)=0.; G_LEAF(L,N)=0.   
-            ELSE
-               ! For coastal points: currently no contribution
-               NPP(L)=NPP(L)-FLAND(L)*um1%TILE_FRAC(L,N)*NPP_FT_old(L,N)
-               GPP(L)=GPP(L)-FLAND(L)*um1%TILE_FRAC(L,N)*GPP_FT_old(L,N)
-               RESP_P(L)=RESP_P(L)-FLAND(L)*um1%TILE_FRAC(L,N)*RESP_P_FT_old(L,N)
-               !--- loop for soil respiration
-               DO I=1,DIM_CS1
-                  RESP_S(L,I)=RESP_S(L,I)-FLAND(L)*RESP_S_old(L,I)
-               ENDDO
-               RESP_S_TOT(L)=sum(RESP_S(L,:))
-            ENDIF
-         ENDDO
-      ENDDO
+!    rml 30/10/15 Initialise grid-cell carbon fields that are accumulated over tiles
+     RESP_P = 0.
+     NPP = 0.
+     GPP = 0.
+     RESP_S = 0.
 
-     RESP_S_TILE=FRS_TILE*1.e-3
+     ! Lestevens - Passing CO2 from CABLE to bl_trmix_dd.F90
+!    rml 30/10/15 unpack cable carbon variables straight into um variables
+!    (previously to local)
+     RESP_S_TILE    = UNPACK(canopy%frs, um1%L_TILE_PTS, miss)
+!    NEE_TILE       = UNPACK(canopy%fnee, um1%L_TILE_PTS, miss)
+     NPP_FT         = UNPACK(canopy%fnpp, um1%L_TILE_PTS, miss)
+     G_LEAF         = UNPACK(canopy%frday,um1%L_TILE_PTS, miss)
+     RESP_P_FT      = UNPACK(canopy%frp, um1%L_TILE_PTS, miss)
+
+!    rml - probably want to retire this switch and always have GPP as real GPP
+!    (off case)
+     IF( cable_user%leaf_respiration == 'on' .OR.                             &
+           cable_user%leaf_respiration == 'ON') THEN
+        GPP_FT = UNPACK(canopy%fnpp+canopy%frp, um1%L_TILE_PTS, miss)
+     ELSE
+        GPP_FT = UNPACK(canopy%fnpp+canopy%frp+canopy%frday,  &
+                            um1%L_TILE_PTS, miss)
+     ENDIF
+
+!    convert from CABLE units (gC/m2/s) to UM units (kgC/m2/s)
+     RESP_S_TILE = RESP_S_TILE*1.e-3
+     G_LEAF      = G_LEAF*1.e-3
+     NPP_FT      = NPP_FT*1.e-3
+     GPP_FT      = GPP_FT*1.e-3
+     RESP_P_FT   = RESP_P_FT*1.e-3
+
      ! Lestevens 23apr13 - possible miss match ntiles<-->npft
-     DO N=1,um1%NTILES
-        DO K=1,um1%TILE_PTS(N)
-           L = um1%TILE_INDEX(K,N)
-           !---convert units to kg C m-2 s-1
-           NPP_FT_ACC(L,N)    = FRS_TILE(L,N)*1.e-3
-           RESP_W_FT_ACC(L,N) = FRP_TILE(L,N)*1.e-3
-        ENDDO
-     ENDDO
+!    If CASA-CNP used, plant and soil resp need to be passed into 
+!    variables that are dumped to restart, because CASA-CNP only run daily
+     NPP_FT_ACC = RESP_S_TILE
+     RESP_W_FT_ACC = RESP_P_FT
 
       DO N=1,um1%NTILES 
          DO K=1,um1%TILE_PTS(N)
             L = um1%TILE_INDEX(K,N)
-            !add leaf respiration to output
-            G_LEAF(L,N)=GLEAF_TILE(L,N)*1.e-3
-            NPP_FT(L,N)=NPP_TILE(L,N)*1.e-3
             NPP(L)=NPP(L)+FLAND(L)*um1%TILE_FRAC(L,N)*NPP_FT(L,N)
-            GPP_FT(L,N)=GPP_TILE(L,N)*1.e-3
             GPP(L)=GPP(L)+FLAND(L)*um1%TILE_FRAC(L,N)*GPP_FT(L,N)
+            RESP_P(L)=RESP_P(L)+FLAND(L)*um1%TILE_FRAC(L,N)*RESP_P_FT(L,N)
 
-            !loop for soil resp. - all UM levels = single CABLE output 
+            !loop for soil resp. although DIM_CS1=1 (not 1 for triffid)
             DO I=1,DIM_CS1
                RESP_S(L,I) = RESP_S(L,I) + &
-                             FLAND(L)*um1%TILE_FRAC(L,N)*FRS_TILE(L,N)*1.e-3
+                             FLAND(L)*um1%TILE_FRAC(L,N)*RESP_S_TILE(L,N)
             ENDDO
-
             RESP_S_TOT(L)=sum(RESP_S(L,:))
-            RESP_P_FT(L,N)=FRP_TILE(L,N)*1.e-3
-            RESP_P(L)=RESP_P(L)+FLAND(L)*um1%TILE_FRAC(L,N)*RESP_P_FT(L,N)
          ENDDO
       ENDDO
 
@@ -744,12 +731,12 @@ SUBROUTINE implicit_unpack( TSOIL, TSOIL_TILE, SMCL, SMCL_TILE,                &
          call fudge_out( 1,1,    q1p5m_TILE,    'q1p5m_TILE',  .TRUE., 0. )                                       
          call fudge_out( 1,1,    canopy_TILE,   'canopy_TILE', .TRUE., 0. )               
          call fudge_out( 1,      canopy_GB,     'canopy_GB',   .TRUE., 0. )                           
-         call fudge_out( 1,1,    frs_TILE,      'frs_TILE',    .TRUE., 0. )                                 
-         call fudge_out( 1,1,    NEE_TILE,      'NEE_TILE',    .TRUE., 0. )                                 
-         call fudge_out( 1,1,    NPP_TILE,      'NPP_TILE',    .TRUE., 0. )                                          
-         call fudge_out( 1,1,    Gleaf_TILE,    'Gleaf_TILE',  .TRUE., 0. )                                          
-         call fudge_out( 1,1,    GPP_TILE,      'GPP_TILE',    .TRUE., 0. )                                    
-         call fudge_out( 1,1,    frp_TILE,      'frp_TILE',    .TRUE., 0. )                                                
+!        call fudge_out( 1,1,    frs_TILE,      'frs_TILE',    .TRUE., 0. )                                 
+!        call fudge_out( 1,1,    NEE_TILE,      'NEE_TILE',    .TRUE., 0. )                                 
+!        call fudge_out( 1,1,    NPP_TILE,      'NPP_TILE',    .TRUE., 0. )                                          
+!        call fudge_out( 1,1,    Gleaf_TILE,    'Gleaf_TILE',  .TRUE., 0. )                                          
+!        call fudge_out( 1,1,    GPP_TILE,      'GPP_TILE',    .TRUE., 0. )                                    
+!        call fudge_out( 1,1,    frp_TILE,      'frp_TILE',    .TRUE., 0. )                                                
          call fudge_out( 1,1,    fTL_1,         'fTL_1',       .TRUE., 0. )                                                
          call fudge_out( 1,1,    fqw_1,         'fqw_1',       .TRUE., 0. )                                                
          call fudge_out( 1,1,SURF_HT_FLUX_LAND, 'SURF_HT_FLUX_LAND',  .TRUE., 0. )                                         
