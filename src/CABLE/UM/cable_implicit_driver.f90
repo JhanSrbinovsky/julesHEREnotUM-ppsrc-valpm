@@ -219,8 +219,82 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 
    !___ 1st call in RUN (!=ktau_gl -see below) 
    LOGICAL, SAVE :: first_cable_call = .TRUE.
-   !jhan:clobbering soil temp
-   !integer :: i,j,k, ijctr
+
+   type ProgBank
+      
+      real, dimension(:,:,:), allocatable ::                &
+         TSOIL, SMCL, STHF 
+         
+      real, dimension(:,:,:), allocatable ::                &
+         SNOW_DEPTH,                                                           &
+         SNOW_MASS, SNOW_TMP, SNOW_RHO
+      
+      real, dimension(:,:), allocatable ::                &
+         SNOW_RHO1L, SNOW_AGE 
+      
+      integer, dimension(:,:), allocatable ::                &
+         SNOW_FLG3L
+
+   End type ProgBank
+
+   !type (ProgBank), dimension(cable% um% numcycles) :: PB
+   type (ProgBank), dimension(2) :: PB
+   
+   integer :: ipb
+   
+   !ipb = cable% um% cycleno
+   do ipb = 1, 2 
+      allocate( PB(ipb)%TSOIL(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
+      allocate( PB(ipb)%SMCL(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
+      allocate( PB(ipb)%STHF(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
+      allocate( PB(ipb)%snow_depth(um1%land_pts,um1%ntiles,3) )
+      allocate( PB(ipb)%snow_mass(um1%land_pts,um1%ntiles,3) )
+      allocate( PB(ipb)%snow_tmp(um1%land_pts,um1%ntiles,3) )
+      allocate( PB(ipb)%snow_rho(um1%land_pts,um1%ntiles,3) )
+      allocate( PB(ipb)%snow_rho1l(um1%land_pts,um1%ntiles) )
+      allocate( PB(ipb)%snow_age(um1%land_pts,um1%ntiles) )
+      allocate( PB(ipb)%snow_flg3l(um1%land_pts,um1%ntiles) )
+      PB(ipb)%tsoil     = tsoil_tile 
+      PB(ipb)%smcl      = smcl_tile
+      PB(ipb)%sthf      = sthf_tile 
+      PB(ipb)%snow_depth= snow_depth3l
+      PB(ipb)%snow_mass = snow_mass3l
+      PB(ipb)%snow_tmp  = snow_tmp3l
+      PB(ipb)%snow_rho  = snow_rho3l
+      PB(ipb)%snow_rho1l= snow_rho1l
+      PB(ipb)%snow_age  = snage_tile
+      PB(ipb)%snow_flg3l= isnow_flg3l
+   enddo
+
+!if (cable% um% cycleno == cable% um% numcycles) then
+!      open(unit=12511,file='c_data_lat',status="unknown", &
+!                  action="write", form="formatted",position='append' )
+!         WRITE(12511,*) , "" 
+!
+!   write(12511,*) "tropics"!, !(where - insert inices in WRITE) 
+!      !real, dimension(um1%land_pts,um1%ntiles,um1%sm_levels) ::                &
+!   write(12511,*) "tsoil ", PB(1)%tsoil(um1%land_pts,um1%ntiles,um1%sm_levels) , PB(2)%tsoil(um1%land_pts,um1%ntiles,um1%sm_levels)       
+!   write(12511,*) "smcl  ", PB(1)%smcl      , PB(2)%smcl        
+!   write(12511,*) "sthf  ", PB(1)%sthf      , PB(2)%sthf
+!      
+!      !real, dimension(um1%land_pts,um1%ntiles,3) ::                            &
+!   write(12511,*) "depth ", PB(1)%snow_depth, PB(2)%snow_depth     
+!   write(12511,*) "mass  ", PB(1)%snow_mass , PB(2)%snow_mass    
+!   write(12511,*) "temp  ", PB(1)%snow_tmp  , PB(2)%snow_tmp    
+!   write(12511,*) "rho3l ", PB(1)%snow_rho  , PB(2)%snow_rho    
+!      
+!      !real, DIMENSION( um1%land_pts,um1%ntiles ) ::                            &
+!   write(12511,*) "rho1l ", PB(1)%snow_rho1l, PB(2)%snow_rho1l  
+!   write(12511,*) "snage ", PB(1)%snow_age  , PB(2)%snow_age    
+!      
+!      !integer :: SNOW_FLG3L(um1%LAND_PTS,um1%NTILES)
+!   write(12511,*) "flg3L ", PB(1)%snow_flg3l, PB(2)%snow_flg3l  
+!
+!   write(12511,*) "e.g. sahara"!, !(where) 
+!
+!   close(12511)
+!endif
+
 
 !if (cable% um% cycleno == 1) then
 !if (cable% um% cycleno == cable% um% numcycles) then
