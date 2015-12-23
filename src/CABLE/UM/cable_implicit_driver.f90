@@ -62,10 +62,10 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
                                   air, bgc, canopy, met, bal, rad, rough, soil,&
                                   ssnow, sum_flux, veg, basic_diag
    USE cable_common_module, ONLY : cable_runtime, cable_user, l_casacnp,       &
-                                   l_vcmaxFeedbk, knode_gl, ktau_gl, kend_gl
+                                   l_vcmaxFeedbk, knode_gl, ktau_gl, kend_gl,  &
+                                   knode_gl
    USE cable_um_init_subrs_mod, ONLY : um2cable_rr
    USE cable_cbm_module,    ONLY : cbm
-
    USE casavariable
    USE phenvariable
    USE casa_types_mod
@@ -237,64 +237,189 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 
    End type ProgBank
 
-   !type (ProgBank), dimension(cable% um% numcycles) :: PB
-   type (ProgBank), dimension(2) :: PB
+   type (ProgBank), dimension(cable% um% numcycles) :: PB
+   !type (ProgBank), dimension(2) :: PB
    
-   integer :: ipb
-   
-   !ipb = cable% um% cycleno
-   do ipb = 1, 2 
-      allocate( PB(ipb)%TSOIL(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
-      allocate( PB(ipb)%SMCL(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
-      allocate( PB(ipb)%STHF(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
-      allocate( PB(ipb)%snow_depth(um1%land_pts,um1%ntiles,3) )
-      allocate( PB(ipb)%snow_mass(um1%land_pts,um1%ntiles,3) )
-      allocate( PB(ipb)%snow_tmp(um1%land_pts,um1%ntiles,3) )
-      allocate( PB(ipb)%snow_rho(um1%land_pts,um1%ntiles,3) )
-      allocate( PB(ipb)%snow_rho1l(um1%land_pts,um1%ntiles) )
-      allocate( PB(ipb)%snow_age(um1%land_pts,um1%ntiles) )
-      allocate( PB(ipb)%snow_flg3l(um1%land_pts,um1%ntiles) )
-      PB(ipb)%tsoil     = tsoil_tile 
-      PB(ipb)%smcl      = smcl_tile
-      PB(ipb)%sthf      = sthf_tile 
-      PB(ipb)%snow_depth= snow_depth3l
-      PB(ipb)%snow_mass = snow_mass3l
-      PB(ipb)%snow_tmp  = snow_tmp3l
-      PB(ipb)%snow_rho  = snow_rho3l
-      PB(ipb)%snow_rho1l= snow_rho1l
-      PB(ipb)%snow_age  = snage_tile
-      PB(ipb)%snow_flg3l= isnow_flg3l
-   enddo
+   integer :: cpb, ipb, i, j
+   integer :: flpt,ftile,flev
+   integer :: lpt,tile,lev
+      !decs to write text files mapping mp points to lat/lon, i/j 
+      character(len=*), parameter :: hcomp="mype"
+      character(len=*), parameter :: hcompa ="i"
+      character(len=*), parameter :: hcompb ="j"
+      character(len=*), parameter :: hcompc ="l"
+      character(len=*), parameter :: hcompd ="n"
+      character(len=*), parameter :: hcomp1 ="mp "
+      character(len=*), parameter :: hcomp2 ="lat "
+      character(len=*), parameter :: hcomp3 ="lon"
+      character(len=*), parameter :: hcomp4 ="frac"
+      character(len=*), parameter :: hcomp5 ="iveg"
+      character(len=*), parameter :: footer1 =""
+      character(len=*), parameter :: footer2 = &
+                  "---------------------------------------------------------------------------------"
+      character(len=*), parameter :: hfmt1 = &
+                  '(A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8, 4X, A8,   4X, A8,   4X, A8,    4X, A8)'
+      character(len=*), parameter :: dfmt1 = &
+                  '(I8, 4X, I8, 4X, I8, 4X, I8, 4X, I8, 4X, I8, 4X, F8.3, 4X, F8.3, 4X, ES8.2, 4X, I8)'
+      character(len=30) :: chnode
+      character(len=12) :: filename
+      character(len=9), parameter :: basename="im_tsoil"
+ 
 
-!if (cable% um% cycleno == cable% um% numcycles) then
-!      open(unit=12511,file='c_data_lat',status="unknown", &
-!                  action="write", form="formatted",position='append' )
-!         WRITE(12511,*) , "" 
-!
-!   write(12511,*) "tropics"!, !(where - insert inices in WRITE) 
-!      !real, dimension(um1%land_pts,um1%ntiles,um1%sm_levels) ::                &
-!   write(12511,*) "tsoil ", PB(1)%tsoil(um1%land_pts,um1%ntiles,um1%sm_levels) , PB(2)%tsoil(um1%land_pts,um1%ntiles,um1%sm_levels)       
-!   write(12511,*) "smcl  ", PB(1)%smcl      , PB(2)%smcl        
-!   write(12511,*) "sthf  ", PB(1)%sthf      , PB(2)%sthf
-!      
-!      !real, dimension(um1%land_pts,um1%ntiles,3) ::                            &
-!   write(12511,*) "depth ", PB(1)%snow_depth, PB(2)%snow_depth     
-!   write(12511,*) "mass  ", PB(1)%snow_mass , PB(2)%snow_mass    
-!   write(12511,*) "temp  ", PB(1)%snow_tmp  , PB(2)%snow_tmp    
-!   write(12511,*) "rho3l ", PB(1)%snow_rho  , PB(2)%snow_rho    
-!      
-!      !real, DIMENSION( um1%land_pts,um1%ntiles ) ::                            &
-!   write(12511,*) "rho1l ", PB(1)%snow_rho1l, PB(2)%snow_rho1l  
-!   write(12511,*) "snage ", PB(1)%snow_age  , PB(2)%snow_age    
-!      
-!      !integer :: SNOW_FLG3L(um1%LAND_PTS,um1%NTILES)
-!   write(12511,*) "flg3L ", PB(1)%snow_flg3l, PB(2)%snow_flg3l  
-!
-!   write(12511,*) "e.g. sahara"!, !(where) 
-!
-!   close(12511)
+  
+   flpt  = um1%land_pts
+   ftile = um1%ntiles
+   flev  = um1%sm_levels
+   flpt  = min(1, flpt)
+   ftile = min(1, ftile)
+   flev  = min(1, flev)
+   cpb = cable% um% numcycles
+   if (.NOT. allocated(PB(1) %tsoil) ) then
+      do ipb = 1, cpb 
+         allocate( PB(ipb)%TSOIL(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
+         allocate( PB(ipb)%SMCL(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
+         allocate( PB(ipb)%STHF(um1%land_pts,um1%ntiles,um1%sm_levels) ) 
+         allocate( PB(ipb)%snow_depth(um1%land_pts,um1%ntiles,3) )
+         allocate( PB(ipb)%snow_mass(um1%land_pts,um1%ntiles,3) )
+         allocate( PB(ipb)%snow_tmp(um1%land_pts,um1%ntiles,3) )
+         allocate( PB(ipb)%snow_rho(um1%land_pts,um1%ntiles,3) )
+         allocate( PB(ipb)%snow_rho1l(um1%land_pts,um1%ntiles) )
+         allocate( PB(ipb)%snow_age(um1%land_pts,um1%ntiles) )
+         allocate( PB(ipb)%snow_flg3l(um1%land_pts,um1%ntiles) )
+      enddo
+   endif   
+
+   ipb = cable% um% cycleno
+   print *,"cable% um% cycleno ",  cable% um% cycleno
+
+   PB(ipb)%tsoil     = 0.  
+   PB(ipb)%smcl      = 0. 
+   PB(ipb)%sthf      = 0. 
+   PB(ipb)%snow_depth= 0. 
+   PB(ipb)%snow_mass = 0. 
+   PB(ipb)%snow_tmp  = 0. 
+   PB(ipb)%snow_rho  = 0. 
+   PB(ipb)%snow_rho1l= 0. 
+   PB(ipb)%snow_age  = 0. 
+   PB(ipb)%snow_flg3l= 0 
+
+!print *, "jh:shape(tsoil_soil ", shape(tsoil_tile)
+!print *, "jh:shape(PB(1)%tsoil ", shape(PB(1)%tsoil)
+!print *, "jh:shape(PB(2)%tsoil ", shape(PB(2)%tsoil)
+!print *, "jh:(tsoil_soil ", (tsoil_tile)
+            ! ----------------------------------------------------------------------------------
+            write(chnode,10) knode_gl
+   10       format(I3.3)   
+            filename=trim(trim(basename)//trim(chnode))
+            
+            open(unit=12517,file=filename,status="unknown", &
+                  action="write", form="formatted",position='append' )
+               
+               write (12517, *) "shape(tsoil_soil) "
+               write (12517, *) shape(tsoil_tile)
+               write (12517, *) " "
+               
+               write (12517, *) "shape(PB(1)%tsoil) "
+               write (12517, *) shape(PB(1)%tsoil)
+               write (12517, *) " "
+
+               write (12517, *) "shape(PB(2)%tsoil) "
+               write (12517, *) shape(PB(2)%tsoil)
+               write (12517, *) " "
+
+               do i=1,flpt
+               do j=1,ftile
+                  write (12517, *) "tsoil_soil(",i,",",j,"1) ", tsoil_tile(i,j,1)
+                  write (12517, *) "tsoil_soil(",i,",",j,"2) ", tsoil_tile(i,j,2)
+                  write (12517, *) "tsoil_soil(",i,",",j,"3) ", tsoil_tile(i,j,3)
+                  write (12517, *) "tsoil_soil(",i,",",j,"4) ", tsoil_tile(i,j,4)
+                  write (12517, *) "tsoil_soil(",i,",",j,"5) ", tsoil_tile(i,j,5)
+                  write (12517, *) "tsoil_soil(",i,",",j,"6) ", tsoil_tile(i,j,6)
+                  write (12517, *) "ipb ", ipb, PB(ipb)%tsoil(i,j,:)
+               enddo   
+               enddo   
+               write (12517, *) " "
+            
+               PB(ipb)%tsoil     = tsoil_tile 
+            close(12517)
+
+
+
+!if(um1%land_pts >0 ) then
+   PB(ipb)%tsoil     = tsoil_tile 
+   PB(ipb)%smcl      = smcl_tile
+   PB(ipb)%sthf      = sthf_tile 
+   PB(ipb)%snow_depth= snow_depth3l
+   PB(ipb)%snow_mass = snow_mass3l
+   PB(ipb)%snow_tmp  = snow_tmp3l
+   PB(ipb)%snow_rho  = snow_rho3l
+   PB(ipb)%snow_rho1l= snow_rho1l
+   PB(ipb)%snow_age  = snage_tile
+   PB(ipb)%snow_flg3l= isnow_flg3l
 !endif
 
+if (ipb == cable% um% numcycles) then
+   tsoil_tile     = PB(1)%tsoil  
+   smcl_tile      = PB(1)%smcl
+   sthf_tile      = PB(1)%sthf
+   snow_depth3l   = PB(1)%snow_depth
+   snow_mass3l    = PB(1)%snow_mass
+   snow_tmp3l     = PB(1)%snow_tmp
+   snow_rho3l     = PB(1)%snow_rho
+   snow_rho1l     = PB(1)%snow_rho1l
+   snage_tile     = PB(1)%snow_age
+   isnow_flg3l    = PB(1)%snow_flg3l
+
+   open(unit=12511,file='c_impl_progs_tropics',status="unknown", &
+                  action="write", form="formatted",position='append' )
+      WRITE(12511,*) , "" 
+
+      write(12511,*) "tropics"!, !(where - insert inices in WRITE) 
+      lpt = 1
+      tile = 17
+      lev = 1
+       
+      write(12511,*) "tsoil ", PB(1)%tsoil(lpt,tile,lev), PB(2)%tsoil(lpt,tile,lev)
+      write(12511,*) "smcl  ", PB(1)%smcl(lpt,tile,lev), PB(2)%smcl(lpt,tile,lev)        
+      write(12511,*) "sthf  ", PB(1)%sthf(lpt,tile,lev), PB(2)%sthf(lpt,tile,lev)
+         
+      write(12511,*) "depth ", PB(1)%snow_depth(lpt,tile,lev), PB(2)%snow_depth(lpt,tile,lev)     
+      write(12511,*) "mass  ", PB(1)%snow_mass(lpt,tile,lev) , PB(2)%snow_mass(lpt,tile,lev)    
+      write(12511,*) "temp  ", PB(1)%snow_tmp(lpt,tile,lev)  , PB(2)%snow_tmp(lpt,tile,lev)    
+      write(12511,*) "rho3l ", PB(1)%snow_rho(lpt,tile,lev)  , PB(2)%snow_rho(lpt,tile,lev)    
+         
+      write(12511,*) "rho1l ", PB(1)%snow_rho1l(lpt,tile), PB(2)%snow_rho1l(lpt,tile)  
+      write(12511,*) "snage ", PB(1)%snow_age(lpt,tile), PB(2)%snow_age(lpt,tile)    
+         
+      write(12511,*) "flg3L ", PB(1)%snow_flg3l(lpt,tile), PB(2)%snow_flg3l(lpt,tile)  
+
+   close(12511)
+
+   open(unit=12511,file='c_impl_progs_sahara',status="unknown", &
+                  action="write", form="formatted",position='append' )
+      WRITE(12511,*) , "" 
+
+      write(12511,*) "sahara"!, !(where - insert inices in WRITE) 
+      lpt = 1
+      tile = 17
+      lev = 1
+       
+      write(12511,*) "tsoil ", PB(1)%tsoil(lpt,tile,lev), PB(2)%tsoil(lpt,tile,lev)
+      write(12511,*) "smcl  ", PB(1)%smcl(lpt,tile,lev), PB(2)%smcl(lpt,tile,lev)        
+      write(12511,*) "sthf  ", PB(1)%sthf(lpt,tile,lev), PB(2)%sthf(lpt,tile,lev)
+         
+      write(12511,*) "depth ", PB(1)%snow_depth(lpt,tile,lev), PB(2)%snow_depth(lpt,tile,lev)     
+      write(12511,*) "mass  ", PB(1)%snow_mass(lpt,tile,lev) , PB(2)%snow_mass(lpt,tile,lev)    
+      write(12511,*) "temp  ", PB(1)%snow_tmp(lpt,tile,lev)  , PB(2)%snow_tmp(lpt,tile,lev)    
+      write(12511,*) "rho3l ", PB(1)%snow_rho(lpt,tile,lev)  , PB(2)%snow_rho(lpt,tile,lev)    
+         
+      write(12511,*) "rho1l ", PB(1)%snow_rho1l(lpt,tile), PB(2)%snow_rho1l(lpt,tile)  
+      write(12511,*) "snage ", PB(1)%snow_age(lpt,tile), PB(2)%snow_age(lpt,tile)    
+         
+      write(12511,*) "flg3L ", PB(1)%snow_flg3l(lpt,tile), PB(2)%snow_flg3l(lpt,tile)  
+
+   close(12511)
+endif
 
 !if (cable% um% cycleno == 1) then
 !if (cable% um% cycleno == cable% um% numcycles) then

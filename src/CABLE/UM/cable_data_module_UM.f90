@@ -134,6 +134,9 @@ module cable_data_mod
          land_index,       &
          tile_pts
 
+      INTEGER ::                                                      &
+         cycleno, numcycles
+
       INTEGER, DIMENSION(:,:), POINTER ::                                      &
          tile_index
 
@@ -491,46 +494,46 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
 
    first_call=.FALSE.
 
-      open(unit=12511,file='c_data_lat',status="unknown", &
-                  action="write", form="formatted",position='append' )
-         WRITE(12511,*) , "" 
-         do i=1, row_length      
-            do j=1, rows     
-               WRITE(12511,*) , i,j, latitude(i,j)
-            enddo   
-         enddo   
-     close(12511)
+      !open(unit=12511,file='c_data_lat',status="unknown", &
+      !            action="write", form="formatted",position='append' )
+      !   WRITE(12511,*) , "" 
+      !   do i=1, row_length      
+      !      do j=1, rows     
+      !         WRITE(12511,*) , i,j, latitude(i,j)
+      !      enddo   
+      !   enddo   
+     c!lose(12511)
 
-      open(unit=12511,file='c_data_lon',status="unknown", &
-             action="write", form="formatted",position='append' )
-             !WRITE(1251,*) , cable%const%math%pi180
-         WRITE(12511,*) , "" 
-         do i=1, row_length      
-            do j=1, rows     
-               WRITE(12511,*) , i,j, longitude(i,j)
-            enddo   
-         enddo   
-       close(12511)
-      
-      open(unit=12511,file='c_data_cablelat',status="unknown", &
-         action="write", form="formatted",position='append' )
-         WRITE(12511,*) , "" 
-         do i=1, row_length      
-            do j=1, rows     
-               WRITE(12511,*) , i,j, cable%mp%latitude(i,j)
-            enddo   
-         enddo   
-      close(12511)
+      !open(unit=12511,file='c_data_lon',status="unknown", &
+      !       action="write", form="formatted",position='append' )
+      !       !WRITE(1251,*) , cable%const%math%pi180
+      !   WRITE(12511,*) , "" 
+      !   do i=1, row_length      
+      !      do j=1, rows     
+      !         WRITE(12511,*) , i,j, longitude(i,j)
+      !      enddo   
+      !   enddo   
+      ! close(12511)
+      !
+      !open(unit=12511,file='c_data_cablelat',status="unknown", &
+      !   action="write", form="formatted",position='append' )
+      !   WRITE(12511,*) , "" 
+      !   do i=1, row_length      
+      !      do j=1, rows     
+      !         WRITE(12511,*) , i,j, cable%mp%latitude(i,j)
+      !      enddo   
+      !   enddo   
+      !close(12511)
 
-      open(unit=12511,file='c_data_a_cablelon',status="unknown", &
-            action="write", form="formatted",position='append' )
-            WRITE(12511,*) , "" 
-            do i=1, row_length      
-               do j=1, rows     
-                  WRITE(12511,*) , i,j, cable%mp%longitude(i,j)
-               enddo   
-            enddo   
-      close(12511)
+      !open(unit=12511,file='c_data_a_cablelon',status="unknown", &
+      !      action="write", form="formatted",position='append' )
+      !      WRITE(12511,*) , "" 
+      !      do i=1, row_length      
+      !         do j=1, rows     
+      !            WRITE(12511,*) , i,j, cable%mp%longitude(i,j)
+      !         enddo   
+      !      enddo   
+      !close(12511)
 
 
 contains
@@ -574,6 +577,14 @@ End subroutine print_control_args
 
 
 END SUBROUTINE cable_atm_step
+
+! Lestevens - test 11dec15
+SUBROUTINE cable_cycle(cycleno,numcycles)
+   INTEGER :: cycleno
+   INTEGER :: numcycles
+      cable% um% cycleno = cycleno
+      cable% um% numcycles = numcycles
+END SUBROUTINE cable_cycle
  
 !===============================================================================
 !vn8.2 WAS

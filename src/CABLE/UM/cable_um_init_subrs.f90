@@ -169,19 +169,19 @@ CONTAINS
             cable_uml = pack(uml, um1%l_tile_pts)
             cable_umn = pack(umn, um1%l_tile_pts)
             
-            open(unit=12517,file=filename,status="unknown", &
-                  action="write", form="formatted",position='append' )
-               
-               write (12517, hfmt1) hcomp, hcompa, hcompb, hcompc, hcompd,hcomp1, hcomp2, hcomp3, hcomp4, hcomp5
-               write (12517, *) footer2 
-               do i=1, mp 
-                  WRITE(12517,dfmt1) , knode_gl, cable_umi(i), cable_umj(i), cable_uml(i), cable_umn(i), &
-                                    i, cable%lat(i), cable%lon(i),    &
-                                    cable%tile_frac(i), veg%iveg(i)  
-               enddo   
-               write (12517, *) footer1 
-            
-            close(12517)
+            !open(unit=12517,file=filename,status="unknown", &
+            !      action="write", form="formatted",position='append' )
+            !   
+            !   write (12517, hfmt1) hcomp, hcompa, hcompb, hcompc, hcompd,hcomp1, hcomp2, hcomp3, hcomp4, hcomp5
+            !   write (12517, *) footer2 
+            !   do i=1, mp 
+            !      WRITE(12517,dfmt1) , knode_gl, cable_umi(i), cable_umj(i), cable_uml(i), cable_umn(i), &
+            !                        i, cable%lat(i), cable%lon(i),    &
+            !                        cable%tile_frac(i), veg%iveg(i)  
+            !   enddo   
+            !   write (12517, *) footer1 
+            !
+            !close(12517)
 
             ! ----------------------------------------------------------------------------------
              
