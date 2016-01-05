@@ -502,7 +502,7 @@ SUBROUTINE cable_atm_step( mype, UM_eq_TRUE, L_cable, a_step, timestep_len, row_
       !         WRITE(12511,*) , i,j, latitude(i,j)
       !      enddo   
       !   enddo   
-     c!lose(12511)
+      !close(12511)
 
       !open(unit=12511,file='c_data_lon',status="unknown", &
       !       action="write", form="formatted",position='append' )
