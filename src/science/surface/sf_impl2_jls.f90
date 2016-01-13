@@ -853,7 +853,7 @@ call cable_control7(                      &
                   cable% um% TSTAR_TILE, cable% im% SURF_HT_FLUX_LAND,         &
                   cable% im% ECAN_TILE, cable% im% ESOIL_TILE,                 &
                   cable% im% EI_TILE, cable% um% RADNET_TILE,                  &
-                  cable% um% TOT_ALB,  cable% cable% SNow_AGE,                 &
+                  cable% um% TOT_ALB,  cable% cable% SNOW_AGE,                 &
                   cable% um% CANOPY, cable% um% GS,                            &
                   cable% im% T1P5M_TILE, cable% im% Q1P5M_TILE,                &
                   cable% um% CANOPY_GB, cable% um% Fland,                      &
@@ -867,8 +867,11 @@ call cable_control7(                      &
                   cable% hyd% LYING_SNOW, &
                   cable% hyd% surf_roff, &
                   cable% hyd% sub_surf_roff, &
-                  cable% hyd% tot_tfall &
+                  cable% hyd% tot_tfall,&
+                  cable% um% tl_1,&
+                  cable% um% qw_1 &
                   )
+!end if
 
 !CABLE}
 
@@ -1150,11 +1153,12 @@ call cable_control7(                      &
                      lc*elake_tile(l,n) + ls*ei_tile(l,n)
       surf_ht_store(l,n) = (canhc_tile(l,n)/timestep) *           &
                            (tstar_tile(l,n) - tstar_tile_old(l,n))
-      !surf_htf_tile(l,n) = radnet_tile(l,n) + anthrop_heat(l,n) - &
-      !                    ftl_tile(l,n) -                         &
-      !                    le_tile(l,n) -                          &
-      !                    lf*(melt_tile(l,n)+melt_ice_tile(l,n))- &
-      !                    surf_ht_store(l,n)
+! Replace with CABLE field ? Lestevens 5jan16
+      surf_htf_tile(l,n) = radnet_tile(l,n) + anthrop_heat(l,n) - &
+                          ftl_tile(l,n) -                         &
+                          le_tile(l,n) -                          &
+                          lf*(melt_tile(l,n)+melt_ice_tile(l,n))- &
+                          surf_ht_store(l,n)
 ! separate out the lake heat flux for FLake
 ! and replace the snow-melt and ice-melt heat flux
 ! so Flake can do its melting
