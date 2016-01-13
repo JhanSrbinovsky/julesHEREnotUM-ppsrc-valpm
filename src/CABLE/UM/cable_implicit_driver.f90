@@ -50,7 +50,8 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
                     !idoy added r1164+
                                   G_LEAF, & 
                                   LYING_SNOW, SURF_ROFF, SUB_SURF_ROFF,  &
-                                  TOT_TFALL )
+                                  TOT_TFALL, TL_1, QW_1 )
+                                  !TOT_TFALL )
                                   !G_LEAF, TRANSP_TILE, CPOOL_TILE, NPOOL_TILE, &
                                   !PPOOL_TILE, GLAI, PHENPHASE, NPP_FT_ACC,     &
                                   !RESP_W_FT_ACC, idoy )
@@ -81,6 +82,8 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       LS_SNOW,  & ! IN Large scale snow
       CON_RAIN, & ! IN Convective rain
       CONV_SNOW,& ! IN Convective snow
+      TL_1,     & !
+      QW_1,     & !
       DTL_1,    & ! IN Level 1 increment to T field 
       DQW_1       ! IN Level 1 increment to q field 
 
@@ -205,7 +208,6 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       kstart = 1
 
    REAL, DIMENSION(mp) ::                                                      & 
-      vfrac,&
       dtlc, & 
       dqwc
    
@@ -226,7 +228,7 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
          TSOIL, SMCL, STHF 
          
       real, dimension(:,:,:), allocatable ::                &
-         SNOW_DEPTH,                                                           &
+         SNOW_DEPTH,                                        &
          SNOW_MASS, SNOW_TMP, SNOW_RHO
       
       real, dimension(:,:), allocatable ::                &
@@ -238,17 +240,17 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
    End type ProgBank
 
    integer, parameter :: cpb =2
-   !type (ProgBank), dimension(cable% um% numcycles), save :: PB
    type (ProgBank), dimension(cpb), save :: PB
    
    integer :: ipb, i, j, k
    integer :: flpt,ftile,flev
    integer :: lpt,tile,lev, itile
    !decs to write text files 
-   character(len=*), parameter :: hfmt1 = '("tile= ", I5, "    ", ES8.2)'
-   character(len=30) :: chnode, chipb
-   character(len=12) :: filename
-   character(len=25) :: basename
+   character(len=*), parameter :: hfmt1 = '("tile= ", I2, "    ", ES8.2)'
+   character(len=30) :: chnode, chipb, chlev
+   character(len=25), dimension(9) :: filename
+   integer, dimension(9) :: iunit 
+   character(len=25), dimension(9) :: basename
   
    flpt  = um1%land_pts
    ftile = um1%ntiles
@@ -284,37 +286,76 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 10 format(I3.3)   
    write(chipb,20) ipb
 20 format(I1.1)   
-            
-   lev = 1
+!=============================================================================            
    lpt = 1 
-   basename="im_tsoil_1_"
-   filename=trim(trim(basename)//trim(chipb)//trim(chnode))
-   !e.g.
-   if(knode_gl==1) then
-      open(unit=12517,file=filename,status="unknown", &
-         action="write", form="formatted",position='append' )
+   lev = 1
+   write(chlev,20) lev
+   
+   basename(1)="tsoil_"; basename(2)="smcl_"; basename(3)="sdep_"
+   basename(4)="smass_"; basename(5)="stmp_"; basename(6)="srho3"
+   basename(7)="srho1_"; basename(8)="sage_"; basename(9)="sflg_"
+   
+   iunit = 12511
+    
+   do i=1, 9
+  
+      filename(i)=trim( trim(basename(i))//"lev"//trim(chlev)//                &
+                  "_cyc"//trim(chipb)//"_cpu"//trim(chnode) )
+      iunit(i) = iunit(i) + 1
       
-         write(12517,*) "e.g. NOT tropics"
-         write (12517, *) " "
-         lpt = 1 
-   endif
-      
-   if(knode_gl==32) then
-      open(unit=12517,file=filename,status="unknown", &
-         action="write", form="formatted",position='append' )
-      
-         write(12517,*) "e.g. maybe tropics on 64 cpus"
-         write (12517, *) " "
-         lpt = 1 
-   endif
-      
-   if(knode_gl==1 .OR. knode_gl==32) then
-      do itile=1,ftile  
-         write (12517, hfmt1) itile, PB(1)%tsoil(lpt,itile,lev)
-      enddo   
-      write (12517, *) " "
-      close(12517)
-   endif
+      !e.g.
+      if(knode_gl==0) then
+         open(unit=iunit(i),file=filename(i),status="unknown", &
+            action="write", form="formatted",position='append' )
+         
+            write(iunit(i),*) "e.g. NOT tropics"
+            write (iunit(i), *) " "
+            lpt = 1 
+      endif
+         
+      if(knode_gl==32) then
+         open(unit=iunit(i),file=filename(i),status="unknown", &
+            action="write", form="formatted",position='append' )
+         
+            write(iunit(i),*) "e.g. maybe tropics on 64 cpus"
+            write (iunit(i), *) " "
+            lpt = 1 
+      endif
+         
+      if(knode_gl==0 .OR. knode_gl==32) then
+  
+         do itile=1,ftile  
+            
+            select case (i)
+               case(1)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%tsoil(lpt,itile,lev)
+               case(2)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%smcl(lpt,itile,lev)
+               case(3)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_depth(lpt,itile,lev)
+               case(4)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_mass(lpt,itile,lev)
+               case(5)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_tmp(lpt,itile,lev)
+               case(6)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_rho(lpt,itile,lev)
+               case(7)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_rho1l(lpt,itile)
+               case(8)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_age(lpt,itile)
+               case(9)
+                  write (iunit(i), hfmt1) itile, PB(ipb)%snow_flg3l(lpt,itile)
+            end select
+                  
+         enddo   
+ 
+         write (iunit(i), *) " "
+         close(iunit(i))
+
+      endif
+   
+   enddo
+!=============================================================================            
 
    if (ipb == cpb) then
       tsoil_tile     = PB(1)%tsoil  
@@ -327,68 +368,6 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       snow_rho1l     = PB(1)%snow_rho1l
       snage_tile     = PB(1)%snow_age
       isnow_flg3l    = PB(1)%snow_flg3l
-   
-      !filename=trim(trim("c_impl_tropics")//trim(chnode))
-      !open(unit=12511,file=filename,status="unknown", &
-      !               action="write", form="formatted",position='append' )
-      !   WRITE(12511,*) , "" 
-   
-      !   write(12511,*) "tropics"!, !(where - insert inices in WRITE) 
-      !   lpt = 1
-      !   tile = 17
-      !   lev = 1
-      !    
-      !   write(12511,*) "tsoil ", PB(1)%tsoil(lpt,:,lev), PB(2)%tsoil(lpt,:,lev)
-      !   WRITE(12511,*) , "" 
-      !   write(12511,*) "smcl  ", PB(1)%smcl(lpt,:,lev),  PB(2)%smcl(lpt,:,lev)        
-      !   WRITE(12511,*) , "" 
-      !   write(12511,*) "sthf  ", PB(1)%sthf(lpt,:,lev),  PB(2)%sthf(lpt,:,lev)
-      !   WRITE(12511,*) , "" 
-      !      
-      !   write(12511,*) "depth ", PB(1)%snow_depth(lpt,:,lev), PB(2)%snow_depth(lpt,:,lev)     
-      !   WRITE(12511,*) , "" 
-      !   write(12511,*) "mass  ", PB(1)%snow_mass(lpt,:,lev) , PB(2)%snow_mass(lpt,:,lev)    
-      !   WRITE(12511,*) , "" 
-      !   write(12511,*) "temp  ", PB(1)%snow_tmp(lpt,:,lev)  , PB(2)%snow_tmp(lpt,:,lev)    
-      !   WRITE(12511,*) , "" 
-      !   write(12511,*) "rho3l ", PB(1)%snow_rho(lpt,:,lev)  , PB(2)%snow_rho(lpt,:,lev)    
-      !   WRITE(12511,*) , "" 
-      !      
-      !   write(12511,*) "rho1l ", PB(1)%snow_rho1l(lpt,:),   PB(2)%snow_rho1l(lpt,:)  
-      !   WRITE(12511,*) , "" 
-      !   write(12511,*) "snage ", PB(1)%snow_age(lpt,:),     PB(2)%snow_age(lpt,:)   
-      !   WRITE(12511,*) , "" 
-      !      
-      !   write(12511,*) "flg3L ", PB(1)%snow_flg3l(lpt,:),   PB(2)%snow_flg3l(lpt,:)  
-      !   WRITE(12511,*) , "" 
-   
-      !close(12511)
-   
-      !filename=trim(trim("c_impl_sahara")//trim(chnode))
-      !open(unit=12511,file=filename,status="unknown", &
-      !               action="write", form="formatted",position='append' )
-      !   WRITE(12511,*) , "" 
-   
-      !   write(12511,*) "sahara"!, !(where - insert inices in WRITE) 
-      !   lpt = 1
-      !   tile = 17
-      !   lev = 1
-      !    
-      !   write(12511,*) "tsoil ", PB(1)%tsoil(lpt,tile,lev), PB(2)%tsoil(lpt,tile,lev)
-      !   write(12511,*) "smcl  ", PB(1)%smcl(lpt,tile,lev), PB(2)%smcl(lpt,tile,lev)        
-      !   write(12511,*) "sthf  ", PB(1)%sthf(lpt,tile,lev), PB(2)%sthf(lpt,tile,lev)
-      !      
-      !   write(12511,*) "depth ", PB(1)%snow_depth(lpt,tile,lev), PB(2)%snow_depth(lpt,tile,lev)     
-      !   write(12511,*) "mass  ", PB(1)%snow_mass(lpt,tile,lev) , PB(2)%snow_mass(lpt,tile,lev)    
-      !   write(12511,*) "temp  ", PB(1)%snow_tmp(lpt,tile,lev)  , PB(2)%snow_tmp(lpt,tile,lev)    
-      !   write(12511,*) "rho3l ", PB(1)%snow_rho(lpt,tile,lev)  , PB(2)%snow_rho(lpt,tile,lev)    
-      !      
-      !   write(12511,*) "rho1l ", PB(1)%snow_rho1l(lpt,tile), PB(2)%snow_rho1l(lpt,tile)  
-      !   write(12511,*) "snage ", PB(1)%snow_age(lpt,tile), PB(2)%snow_age(lpt,tile)    
-      !      
-      !   write(12511,*) "flg3L ", PB(1)%snow_flg3l(lpt,tile), PB(2)%snow_flg3l(lpt,tile)  
-   
-      !close(12511)
    endif
 
    IF( first_cable_call) ssnow%tggav = 0.
@@ -407,8 +386,6 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       ssnow%tgg(:,J) = PACK(TSOIL_TILE(:,:,J),um1%l_tile_pts)
    ENDDO
 
-
-
       IF(cable_user%run_diag_level == "BASIC")                                    &     
          CALL basic_diag(subr_name, "Called.") 
 
@@ -416,7 +393,7 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
    
       ! FLAGS def. specific call to CABLE from UM
       cable_runtime%um_explicit = .FALSE.
-      !cable_runtime%um_implicit = .TRUE.
+      cable_runtime%um_implicit = .TRUE.
    
       dtlc = 0. ; dqwc = 0.
 
@@ -432,8 +409,11 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
       !--- where mask tells um2cable_rr whether or not to use default value 
       !--- for snow tile 
       !-------------------------------------------------------------------
+
       CALL um2cable_rr( (LS_RAIN+CON_RAIN)*um1%TIMESTEP, met%precip)
       CALL um2cable_rr( (LS_SNOW+CONV_SNOW)*um1%TIMESTEP, met%precip_sn)
+      CALL um2cable_rr( TL_1, met%tk)
+      CALL um2cable_rr( QW_1, met%qv)
       CALL um2cable_rr( dtl_1, dtlc)
       CALL um2cable_rr( dqw_1, dqwc)
       
@@ -503,14 +483,13 @@ subroutine cable_implicit_driver( LS_RAIN, CON_RAIN, LS_SNOW, CONV_SNOW,       &
 !      endif
        
 ! DEPENDS ON: cable_hyd_driver
-   call cable_hyd_driver( SNOW_TILE, LYING_SNOW, SURF_ROFF, SUB_SURF_ROFF,  &
+      call cable_hyd_driver( SNOW_TILE, LYING_SNOW, SURF_ROFF, SUB_SURF_ROFF,  &
                              TOT_TFALL )
-   vfrac = pack(um1%tile_frac,um1%l_tile_pts)
 
-   cable_runtime%um_implicit = .FALSE.
 
-!end if ! cycleno
-  
+
+      cable_runtime%um_implicit = .FALSE.
+
    IF(cable_user%run_diag_level == "BASIC")                                    &     
       CALL basic_diag(subr_name, "Done.") 
 
